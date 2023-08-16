@@ -7,7 +7,7 @@
 #endif /* __TARGET_ARCH_arm64 */
 
 #include <gadget/mntns_filter.h>
-#ifdef WITH_CWD
+#ifdef WITH_LONG_PATHS
 #include <gadget/filesystem.h>
 #endif
 #include "execsnoop.h"
@@ -98,7 +98,7 @@ int ig_execve_e(struct trace_event_raw_sys_enter *ctx)
 	event->args_size = 0;
 	event->mntns_id = mntns_id;
 
-#ifdef WITH_CWD
+#ifdef WITH_LONG_PATHS
 	fs = BPF_CORE_READ(task, fs);
 	cwd = get_path_str(&fs->pwd);
 	bpf_probe_read_kernel_str(event->cwd, MAX_STRING_SIZE, cwd);
@@ -187,6 +187,9 @@ int ig_execve_x(struct trace_event_raw_sys_exit *ctx)
 	int ret;
 	struct event *event;
 	u32 uid = (u32)bpf_get_current_uid_gid();
+	struct task_struct *task;
+	struct file *exe_file;
+	char *exe;
 
 	if (valid_uid(targ_uid) && targ_uid != uid)
 		return 0;
@@ -205,6 +208,14 @@ int ig_execve_x(struct trace_event_raw_sys_exit *ctx)
 
 	event->retval = ret;
 	bpf_get_current_comm(&event->comm, sizeof(event->comm));
+
+#ifdef WITH_LONG_PATHS
+	task = (struct task_struct *)bpf_get_current_task();
+	exe_file = BPF_CORE_READ(task, mm, exe_file);
+	exe = get_path_str(&exe_file->f_path);
+	bpf_probe_read_kernel_str(event->exe, MAX_STRING_SIZE, exe);
+#endif
+
 	size_t len = EVENT_SIZE(event);
 	if (len <= sizeof(*event))
 		bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, event,

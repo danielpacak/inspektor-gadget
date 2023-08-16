@@ -178,7 +178,7 @@ func TestExecTracer(t *testing.T) {
 			getTracerConfig: func(info *utilstest.RunnerInfo) *tracer.Config {
 				return &tracer.Config{
 					MountnsMap: utilstest.CreateMntNsFilterMap(t, info.MountNsID),
-					GetCwd:     true,
+					GetPaths:   true,
 				}
 			},
 			generateEvent: func() (int, error) {

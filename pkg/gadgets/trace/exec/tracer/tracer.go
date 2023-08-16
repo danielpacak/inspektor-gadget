@@ -33,11 +33,11 @@ import (
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target bpfel -cc clang -cflags ${CFLAGS} -type event execsnoop ./bpf/execsnoop.bpf.c -- -I./bpf/
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target bpfel -cc clang -cflags ${CFLAGS} -type event execsnoopWithCwd ./bpf/execsnoop.bpf.c -- -DWITH_CWD -I./bpf/
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target bpfel -cc clang -cflags ${CFLAGS} -type event execsnoopWithLongPaths ./bpf/execsnoop.bpf.c -- -DWITH_LONG_PATHS -I./bpf/
 
 type Config struct {
 	MountnsMap   *ebpf.Map
-	GetCwd       bool
+	GetPaths     bool
 	IgnoreErrors bool
 }
 
@@ -92,8 +92,8 @@ func (t *Tracer) install() error {
 	var spec *ebpf.CollectionSpec
 	var err error
 
-	if t.config.GetCwd {
-		spec, err = loadExecsnoopWithCwd()
+	if t.config.GetPaths {
+		spec, err = loadExecsnoopWithLongPaths()
 	} else {
 		spec, err = loadExecsnoop()
 	}
@@ -173,10 +173,11 @@ func (t *Tracer) run() {
 		buf := []byte{}
 		args := bpfEvent.Args
 
-		if t.config.GetCwd {
-			bpfEventWithCwd := (*execsnoopWithCwdEvent)(unsafe.Pointer(&record.RawSample[0]))
-			event.Cwd = gadgets.FromCString(bpfEventWithCwd.Cwd[:])
-			args = bpfEventWithCwd.Args
+		if t.config.GetPaths {
+			bpfEventWithLongPaths := (*execsnoopWithLongPathsEvent)(unsafe.Pointer(&record.RawSample[0]))
+			event.Cwd = gadgets.FromCString(bpfEventWithLongPaths.Cwd[:])
+			event.Exe = gadgets.FromCString(bpfEventWithLongPaths.Exe[:])
+			args = bpfEventWithLongPaths.Args
 		}
 
 		for i := 0; i < int(bpfEvent.ArgsSize) && argsCount < int(bpfEvent.ArgsCount); i++ {
@@ -201,7 +202,7 @@ func (t *Tracer) run() {
 // --- Registry changes
 
 func (t *Tracer) Run(gadgetCtx gadgets.GadgetContext) error {
-	t.config.GetCwd = gadgetCtx.GadgetParams().Get(ParamCwd).AsBool()
+	t.config.GetPaths = gadgetCtx.GadgetParams().Get(ParamPaths).AsBool()
 	t.config.IgnoreErrors = gadgetCtx.GadgetParams().Get(ParamIgnoreErrors).AsBool()
 
 	defer t.close()
