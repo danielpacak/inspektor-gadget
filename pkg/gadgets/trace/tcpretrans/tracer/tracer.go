@@ -44,6 +44,7 @@ type Tracer struct {
 
 	objs              tcpretransObjects
 	retransmitSkbLink link.Link
+	lossSkbLink       link.Link
 	reader            *perf.Reader
 }
 
@@ -73,6 +74,7 @@ func (t *Tracer) SetEventHandler(handler any) {
 
 func (t *Tracer) close() {
 	t.retransmitSkbLink = gadgets.CloseLink(t.retransmitSkbLink)
+	t.lossSkbLink = gadgets.CloseLink(t.lossSkbLink)
 
 	if t.reader != nil {
 		t.reader.Close()
@@ -118,6 +120,11 @@ func (t *Tracer) install() error {
 		return fmt.Errorf("attaching tracepoint tcp_retransmit_skb: %w", err)
 	}
 
+	t.lossSkbLink, err = link.Kprobe("tcp_send_loss_probe", t.objs.IgTcplossprobe, nil)
+	if err != nil {
+		return fmt.Errorf("attaching kprobe tcp_send_loss_probe: %w", err)
+	}
+
 	reader, err := perf.NewReader(t.objs.tcpretransMaps.Events, gadgets.PerfBufferPages*os.Getpagesize())
 	if err != nil {
 		return fmt.Errorf("creating perf ring buffer: %w", err)
@@ -125,6 +132,13 @@ func (t *Tracer) install() error {
 	t.reader = reader
 
 	return nil
+}
+
+func lostToString(lost bool) string {
+	if lost {
+		return "Y"
+	}
+	return "N"
 }
 
 func (t *Tracer) run() {
@@ -179,6 +193,7 @@ func (t *Tracer) run() {
 			},
 			State:    tcpbits.TCPState(bpfEvent.State),
 			Tcpflags: tcpbits.TCPFlags(bpfEvent.Tcpflags),
+			Lost:     lostToString(bpfEvent.Lost),
 		}
 
 		t.eventCallback(&event)
