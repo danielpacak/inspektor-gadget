@@ -31,6 +31,7 @@ struct event {
 	__u16 sport;
 	__u8 state;
 	__u8 tcpflags;
+	bool lost;
 	__u32 reason;
 	__u32 netns;
 
