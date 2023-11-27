@@ -42,6 +42,7 @@ var (
 	grpcRuntime *grpcruntime.Runtime
 	// common params for all gadgets
 	params utils.CommonFlags
+	deploy bool
 )
 
 var rootCmd = &cobra.Command{
@@ -53,6 +54,8 @@ var infoSkipCommands = []string{"deploy", "undeploy", "version"}
 
 func init() {
 	utils.FlagInit(rootCmd)
+	rootCmd.PersistentFlags().BoolVar(&deploy, "deploy", false, "Deploy Inspektor Gadget to the cluster before running the gadget and undeploy it afterwards")
+	addGeneralDeployFlags(rootCmd)
 }
 
 func main() {
@@ -72,6 +75,18 @@ func main() {
 			if strings.ToLower(arg) == skipCmd {
 				skipInfo = true
 			}
+		}
+	}
+
+	// Remove the deploy flag from the help for "deploy", "version" and "undeploy"
+	for _, c := range rootCmd.Commands() {
+		switch c.Name() {
+		case "deploy", "version", "undeploy":
+			origHelp := c.HelpFunc()
+			c.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+				c.InheritedFlags().MarkHidden("deploy")
+				origHelp(cmd, args)
+			})
 		}
 	}
 
@@ -96,15 +111,35 @@ func main() {
 	namespace, _ := utils.GetNamespace()
 	grpcRuntime.SetDefaultValue(gadgets.K8SNamespace, namespace)
 
-	hiddenColumnTags := []string{"runtime"}
-	common.AddCommandsFromRegistry(rootCmd, grpcRuntime, hiddenColumnTags)
-
 	// Advise category is still being handled by CRs for now
 	rootCmd.AddCommand(advise.NewAdviseCmd())
 
 	rootCmd.AddCommand(common.NewSyncCommand(grpcRuntime))
 
-	if err := rootCmd.Execute(); err != nil {
+	// Deploy and update our local registry before we add commands from it
+	if deploy {
+		err := runDeploy(os.Stderr)
+		if err != nil {
+			log.Errorf("deploying Inspektor Gadget: %v\n", err)
+			os.Exit(1)
+		}
+		grpcRuntime.InitDeployInfo()
+	}
+
+	hiddenColumnTags := []string{"runtime"}
+	common.AddCommandsFromRegistry(rootCmd, grpcRuntime, hiddenColumnTags)
+
+	err := rootCmd.Execute()
+
+	if deploy {
+		err := runUndeploy(os.Stderr)
+		if err != nil {
+			log.Errorf("undeploying Inspektor Gadget: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	if err != nil {
 		os.Exit(1)
 	}
 }
