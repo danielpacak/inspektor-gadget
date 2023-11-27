@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -42,7 +43,7 @@ import (
 var undeployCmd = &cobra.Command{
 	Use:          "undeploy",
 	Short:        "Undeploy Inspektor Gadget from cluster",
-	RunE:         runUndeploy,
+	RunE:         func(cmd *cobra.Command, args []string) error { return runUndeploy(os.Stdout) },
 	SilenceUsage: true,
 }
 
@@ -62,7 +63,7 @@ func init() {
 	)
 }
 
-func runUndeploy(cmd *cobra.Command, args []string) error {
+func runUndeploy(outFile *os.File) error {
 	traceClient, err := utils.GetTraceClient()
 	if err != nil {
 		return fmt.Errorf("getting trace client: %w", err)
@@ -98,7 +99,7 @@ func runUndeploy(cmd *cobra.Command, args []string) error {
 	n := 7
 
 again:
-	fmt.Println("Removing traces...")
+	fmt.Fprintln(outFile, "Removing traces...")
 	err = traceClient.GadgetV1alpha1().Traces(utils.GadgetNamespace).DeleteCollection(
 		context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{},
 	)
@@ -134,7 +135,7 @@ again:
 	}
 
 	// 2. remove crd
-	fmt.Println("Removing CRD...")
+	fmt.Fprintln(outFile, "Removing CRD...")
 	err = crdClient.ApiextensionsV1().CustomResourceDefinitions().Delete(
 		context.TODO(), "traces.gadget.kinvolk.io", metav1.DeleteOptions{},
 	)
@@ -145,7 +146,7 @@ again:
 	}
 
 	// 3. gadget cluster role binding
-	fmt.Println("Removing cluster role binding...")
+	fmt.Fprintln(outFile, "Removing cluster role binding...")
 	err = k8sClient.RbacV1().ClusterRoleBindings().Delete(
 		context.TODO(), "gadget-cluster-role-binding", metav1.DeleteOptions{},
 	)
@@ -156,7 +157,7 @@ again:
 	}
 
 	// 4. gadget cluster role
-	fmt.Println("Removing cluster role...")
+	fmt.Fprintln(outFile, "Removing cluster role...")
 	err = k8sClient.RbacV1().ClusterRoles().Delete(
 		context.TODO(), "gadget-cluster-role", metav1.DeleteOptions{},
 	)
@@ -206,7 +207,7 @@ again:
 		}
 	}
 
-	fmt.Println("Removing namespace...")
+	fmt.Fprintln(outFile, "Removing namespace...")
 	err = k8sClient.CoreV1().Namespaces().Delete(
 		context.TODO(), utils.GadgetNamespace, metav1.DeleteOptions{},
 	)
@@ -231,7 +232,7 @@ again:
 			}
 		}
 
-		fmt.Println("Waiting for namespace to be removed...")
+		fmt.Fprintln(outFile, "Waiting for namespace to be removed...")
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 		defer cancel()
@@ -247,9 +248,9 @@ out:
 	}
 
 	if undeployWait {
-		fmt.Println("Inspektor Gadget successfully removed")
+		fmt.Fprintln(outFile, "Inspektor Gadget successfully removed")
 	} else {
-		fmt.Println("Inspektor Gadget is being removed")
+		fmt.Fprintln(outFile, "Inspektor Gadget is being removed")
 	}
 
 	// Cleanup state related to the deployment (everything but the catalog)
