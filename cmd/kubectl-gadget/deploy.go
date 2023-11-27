@@ -91,37 +91,14 @@ var supportedHooks = []string{"auto", "crio", "podinformer", "nri", "fanotify", 
 
 func init() {
 	commonutils.AddRuntimesSocketPathFlags(deployCmd, &runtimesConfig)
+	addGeneralDeployFlags(deployCmd)
 
-	deployCmd.PersistentFlags().StringVarP(
-		&image,
-		"image", "",
-		gadgetimage,
-		"container image")
-	deployCmd.PersistentFlags().StringVarP(
-		&imagePullPolicy,
-		"image-pull-policy", "",
-		"Always",
-		"pull policy for the container image")
-	deployCmd.PersistentFlags().StringVarP(
-		&hookMode,
-		"hook-mode", "",
-		"auto",
-		fmt.Sprintf("how to get containers start/stop notifications (%s)", strings.Join(supportedHooks, ", ")))
-	deployCmd.PersistentFlags().BoolVarP(
-		&livenessProbe,
-		"liveness-probe", "",
-		true,
-		"enable liveness probes")
-	deployCmd.PersistentFlags().BoolVarP(
-		&fallbackPodInformer,
-		"fallback-podinformer", "",
-		true,
-		"use pod informer as a fallback for the main hook")
-	deployCmd.PersistentFlags().BoolVarP(
-		&legacyHostPID,
-		"legacy-host-pid", "",
-		false,
-		"use hostPID=true for the gadget pod (legacy)")
+	// These flags are only usefull for the deploy command itself
+	deployCmd.PersistentFlags().DurationVarP(
+		&deployTimeout,
+		"timeout", "",
+		120*time.Second,
+		"timeout for deployment")
 	deployCmd.PersistentFlags().BoolVarP(
 		&printOnly,
 		"print-only", "",
@@ -132,38 +109,67 @@ func init() {
 		"wait", "",
 		true,
 		"wait for gadget pod to be ready")
-	deployCmd.PersistentFlags().DurationVarP(
-		&deployTimeout,
-		"timeout", "",
-		120*time.Second,
-		"timeout for deployment")
+
+	rootCmd.AddCommand(deployCmd)
+}
+
+func addGeneralDeployFlags(cmd *cobra.Command) {
+	cmd.PersistentFlags().StringVarP(
+		&image,
+		"image", "",
+		gadgetimage,
+		"container image")
+	cmd.PersistentFlags().StringVarP(
+		&imagePullPolicy,
+		"image-pull-policy", "",
+		"Always",
+		"pull policy for the container image")
+	cmd.PersistentFlags().StringVarP(
+		&hookMode,
+		"hook-mode", "",
+		"auto",
+		fmt.Sprintf("how to get containers start/stop notifications (%s)", strings.Join(supportedHooks, ", ")))
+	cmd.PersistentFlags().BoolVarP(
+		&livenessProbe,
+		"liveness-probe", "",
+		true,
+		"enable liveness probes")
+	cmd.PersistentFlags().BoolVarP(
+		&fallbackPodInformer,
+		"fallback-podinformer", "",
+		true,
+		"use pod informer as a fallback for the main hook")
+	cmd.PersistentFlags().BoolVarP(
+		&legacyHostPID,
+		"legacy-host-pid", "",
+		false,
+		"use hostPID=true for the gadget pod (legacy)")
 	// TODO: Combine --quiet and --debug in --verbose LEVEL?
-	deployCmd.PersistentFlags().BoolVarP(
+	cmd.PersistentFlags().BoolVarP(
 		&quiet,
 		"quiet", "q",
 		false,
 		"supress information messages")
-	deployCmd.PersistentFlags().BoolVarP(
+	cmd.PersistentFlags().BoolVarP(
 		&debug,
 		"debug", "d",
 		false,
 		"show extra debug information")
-	deployCmd.PersistentFlags().StringVarP(
+	cmd.PersistentFlags().StringVarP(
 		&nodeSelector,
 		"node-selector", "",
 		"",
 		"node labels selector for the Inspektor Gadget DaemonSet")
-	deployCmd.PersistentFlags().BoolVar(
+	cmd.PersistentFlags().BoolVar(
 		&experimentalVar,
 		"experimental",
 		false,
 		"enable experimental features")
-	deployCmd.PersistentFlags().BoolVarP(
+	cmd.PersistentFlags().BoolVarP(
 		&skipSELinuxOpts,
 		"skip-selinux-opts", "",
 		false,
 		"skip setting SELinux options on the gadget pod")
-	rootCmd.AddCommand(deployCmd)
 }
 
 func info(outFile *os.File, format string, args ...any) {
