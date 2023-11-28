@@ -38,8 +38,11 @@ import (
 	_ "github.com/inspektor-gadget/inspektor-gadget/pkg/gadgets/script"
 )
 
-// common params for all gadgets
-var params utils.CommonFlags
+var (
+	grpcRuntime *grpcruntime.Runtime
+	// common params for all gadgets
+	params utils.CommonFlags
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "kubectl-gadget",
@@ -72,10 +75,10 @@ func main() {
 		}
 	}
 
-	runtime := grpcruntime.New(grpcruntime.WithConnectUsingK8SProxy)
-	runtimeGlobalParams := runtime.GlobalParamDescs().ToParams()
-	common.AddFlags(rootCmd, runtimeGlobalParams, nil, runtime)
-	runtime.Init(runtimeGlobalParams)
+	grpcRuntime = grpcruntime.New(grpcruntime.WithConnectUsingK8SProxy)
+	runtimeGlobalParams := grpcRuntime.GlobalParamDescs().ToParams()
+	common.AddFlags(rootCmd, runtimeGlobalParams, nil, grpcRuntime)
+	grpcRuntime.Init(runtimeGlobalParams)
 	if !skipInfo {
 		// evaluate flags early for runtimeGlobalFlags; this will make
 		// sure that --connection-method has already been parsed when calling
@@ -87,19 +90,19 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
-		runtime.InitDeployInfo()
+		grpcRuntime.InitDeployInfo()
 	}
 
 	namespace, _ := utils.GetNamespace()
-	runtime.SetDefaultValue(gadgets.K8SNamespace, namespace)
+	grpcRuntime.SetDefaultValue(gadgets.K8SNamespace, namespace)
 
 	hiddenColumnTags := []string{"runtime"}
-	common.AddCommandsFromRegistry(rootCmd, runtime, hiddenColumnTags)
+	common.AddCommandsFromRegistry(rootCmd, grpcRuntime, hiddenColumnTags)
 
 	// Advise category is still being handled by CRs for now
 	rootCmd.AddCommand(advise.NewAdviseCmd())
 
-	rootCmd.AddCommand(common.NewSyncCommand(runtime))
+	rootCmd.AddCommand(common.NewSyncCommand(grpcRuntime))
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

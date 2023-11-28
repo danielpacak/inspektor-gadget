@@ -55,7 +55,6 @@ import (
 	"github.com/inspektor-gadget/inspektor-gadget/cmd/kubectl-gadget/utils"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/k8sutil"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/resources"
-	grpcruntime "github.com/inspektor-gadget/inspektor-gadget/pkg/runtime/grpc"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/utils/experimental"
 )
 
@@ -576,9 +575,8 @@ func runDeploy(outFile *os.File) error {
 	}
 
 	info(outFile, "Retrieving Gadget Catalog...\n")
-	rt := grpcruntime.New(grpcruntime.WithConnectUsingK8SProxy)
-	rt.Init(rt.GlobalParamDescs().ToParams())
-	err = rt.UpdateDeployInfo()
+	grpcRuntime.Init(grpcRuntime.GlobalParamDescs().ToParams())
+	err = grpcRuntime.UpdateDeployInfo()
 	if err != nil {
 		fmt.Printf("> failed: %v\n", err)
 	}
