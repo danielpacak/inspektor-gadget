@@ -268,16 +268,22 @@ func listGadgetImages(ctx context.Context, store *oci.Store) ([]*GadgetImageDesc
 	images := []*GadgetImageDesc{}
 	err := store.Tags(ctx, "", func(tags []string) error {
 		for _, fullTag := range tags {
-			repository, err := getRepositoryFromImage(fullTag)
+			parsed, err := reference.Parse(fullTag)
 			if err != nil {
-				log.Debugf("getting repository from image %q: %s", fullTag, err)
+				log.Debugf("parsing image %q: %s", fullTag, err)
 				continue
 			}
-			tag, err := getTagFromImage(fullTag)
-			if err != nil {
-				log.Debugf("getting tag from image %q: %s", fullTag, err)
-				continue
+
+			var repository string
+			if named, ok := parsed.(reference.Named); ok {
+				repository = named.Name()
 			}
+
+			tag := "latest"
+			if tagged, ok := parsed.(reference.Tagged); ok {
+				tag = tagged.Tag()
+			}
+
 			image := &GadgetImageDesc{
 				Repository: repository,
 				Tag:        tag,
