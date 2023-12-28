@@ -557,18 +557,7 @@ EOF`, jobname, namespace, jobname, image, cmdLine)
 	}
 }
 
-// PodCommand returns a Command that starts a pod with a specified image, command and args
-func PodCommand(podname, image, namespace, command, commandArgs string) *Command {
-	cmdLine := ""
-	if command != "" {
-		cmdLine = fmt.Sprintf("\n    command: %s", command)
-	}
-
-	commandArgsLine := ""
-	if commandArgs != "" {
-		commandArgsLine = fmt.Sprintf("\n    args:\n    - %s", commandArgs)
-	}
-
+func GeneralPodCommand(podname, image, namespace, additionalContainerLines string) *Command {
 	cmdStr := fmt.Sprintf(`kubectl apply -f - <<"EOF"
 apiVersion: v1
 kind: Pod
@@ -582,15 +571,49 @@ spec:
   terminationGracePeriodSeconds: 0
   containers:
   - name: %s
-    image: %s%s%s
+    image: %s%s
 EOF
-`, podname, namespace, podname, podname, image, cmdLine, commandArgsLine)
+`, podname, namespace, podname, podname, image, additionalContainerLines)
 
 	return &Command{
 		Name:           fmt.Sprintf("Run %s", podname),
 		Cmd:            cmdStr,
 		ExpectedString: fmt.Sprintf("pod/%s created\n", podname),
 	}
+}
+
+func PodCommandWithMemoryLimit(podname, image, namespace, command, commandArgs, memoryLimit string) *Command {
+	cmdLine := ""
+	if command != "" {
+		cmdLine = fmt.Sprintf("\n    command: %s", command)
+	}
+
+	commandArgsLine := ""
+	if commandArgs != "" {
+		commandArgsLine = fmt.Sprintf("\n    args:\n    - %s", commandArgs)
+	}
+
+	memoryLimitLines := ""
+	if memoryLimit != "" {
+		memoryLimitLines = fmt.Sprintf("\n    resources:\n      limits:\n        memory: %s", memoryLimit)
+	}
+
+	return GeneralPodCommand(podname, image, namespace, cmdLine+commandArgsLine+memoryLimitLines)
+}
+
+// PodCommand returns a Command that starts a pod with a specified image, command and args
+func PodCommand(podname, image, namespace, command, commandArgs string) *Command {
+	cmdLine := ""
+	if command != "" {
+		cmdLine = fmt.Sprintf("\n    command: %s", command)
+	}
+
+	commandArgsLine := ""
+	if commandArgs != "" {
+		commandArgsLine = fmt.Sprintf("\n    args:\n    - %s", commandArgs)
+	}
+
+	return GeneralPodCommand(podname, image, namespace, cmdLine+commandArgsLine)
 }
 
 // BusyboxPodRepeatCommand returns a Command that creates a pod and runs

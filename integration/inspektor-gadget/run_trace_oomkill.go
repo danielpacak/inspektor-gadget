@@ -70,33 +70,9 @@ func runTraceOOMKill(t *testing.T, ns string, cmd string) {
 		},
 	}
 
-	limitPodYaml := fmt.Sprintf(`
-apiVersion: v1
-kind: Pod
-metadata:
-  name: test-pod
-  namespace: %s
-spec:
-  restartPolicy: Never
-  terminationGracePeriodSeconds: 0
-  containers:
-  - name: test-pod-container
-    image: busybox
-    resources:
-      limits:
-        memory: "128Mi"
-    command: ["/bin/sh", "-c"]
-    args:
-    - setuidgid 1000:2000 sh -c "while true; do tail /dev/zero; done"
-`, ns)
-
 	commands := []*Command{
 		traceOOMKillCmd,
-		{
-			Name:           "RunOomkillTestPod",
-			Cmd:            fmt.Sprintf("echo '%s' | kubectl apply -f -", limitPodYaml),
-			ExpectedRegexp: "pod/test-pod created",
-		},
+		PodCommandWithMemoryLimit("test-pod", "busybox", ns, `["/bin/sh", "-c"]`, `setuidgid 1000:2000 sh -c "while true; do tail /dev/zero; done"`, "128Mi"),
 		WaitUntilTestPodReadyCommand(ns),
 	}
 
