@@ -106,49 +106,33 @@ func (m *KubeIPResolverInstance) PostGadgetRun() error {
 }
 
 func (m *KubeIPResolverInstance) enrich(ev any) {
-	pods, _ := m.manager.k8sInventory.GetPods()
+	//pods, _ := m.manager.k8sInventory.GetPods()
 	endpoints := ev.(KubeIPResolverInterface).GetEndpoints()
 	for j := range endpoints {
 		// initialize to this default value if we don't find a match
 		endpoints[j].Kind = types.EndpointKindRaw
 	}
 
-	found := 0
-	for _, pod := range pods {
-		if pod.Spec.HostNetwork {
+	for _, endpoint := range endpoints {
+		if endpoint.Addr == "" {
 			continue
 		}
 
-		for _, endpoint := range endpoints {
-			if pod.Status.PodIP == endpoint.Addr {
-				endpoint.Kind = types.EndpointKindPod
-				endpoint.Name = pod.Name
-				endpoint.Namespace = pod.Namespace
-				endpoint.PodLabels = pod.Labels
-
-				found++
-				if found == len(endpoints) {
-					return
-				}
-			}
+		pod, _ := m.manager.k8sInventory.GetPodByIP(endpoint.Addr)
+		if pod != nil && !pod.Spec.HostNetwork {
+			endpoint.Kind = types.EndpointKindPod
+			endpoint.Name = pod.Name
+			endpoint.Namespace = pod.Namespace
+			endpoint.PodLabels = pod.Labels
+			continue
 		}
-	}
 
-	svcs, _ := m.manager.k8sInventory.GetSvcs()
-
-	for _, svc := range svcs {
-		for _, endpoint := range endpoints {
-			if svc.Spec.ClusterIP == endpoint.Addr {
-				endpoint.Kind = types.EndpointKindService
-				endpoint.Name = svc.Name
-				endpoint.Namespace = svc.Namespace
-				endpoint.PodLabels = svc.Labels
-
-				found++
-				if found == len(endpoints) {
-					return
-				}
-			}
+		svc, _ := m.manager.k8sInventory.GetSvcByIP(endpoint.Addr)
+		if svc != nil {
+			endpoint.Kind = types.EndpointKindService
+			endpoint.Name = svc.Name
+			endpoint.Namespace = svc.Namespace
+			endpoint.PodLabels = svc.Labels
 		}
 	}
 }
