@@ -97,7 +97,7 @@ minikube         random
 The following command is the same as default printing:
 
 ```bash
-$ kubectl gadget profile cpu --timeout 1 --podname random -o columns=k8s.node,k8s.namespace,k8s.pod,k8s.container,pid,comm,count
+$ kubectl gadget profile cpu --timeout 1 --podname random -o columns=k8s.node,k8s.namespace,k8s.pod,k8s.labels,k8s.container,pid,comm,count
 Capturing stack traces...
 K8S.NODE         K8S.NAMESPACE    K8S.POD                        K8S.CONTAINER    PID     COMM             COUNT
 minikube         default          random                         random           340800  cat              1
