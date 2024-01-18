@@ -47,17 +47,38 @@ import (
 
 func enrichContainerWithContainerData(containerData *runtimeclient.ContainerData, container *Container) {
 	// Runtime
-	container.Runtime.ContainerID = containerData.Runtime.ContainerID
-	container.Runtime.RuntimeName = containerData.Runtime.RuntimeName
-	container.Runtime.ContainerName = containerData.Runtime.ContainerName
-	container.Runtime.ContainerImageName = containerData.Runtime.ContainerImageName
-	container.Runtime.ContainerImageDigest = containerData.Runtime.ContainerImageDigest
+	if container.Runtime.ContainerID == "" {
+		container.Runtime.ContainerID = containerData.Runtime.ContainerID
+	}
+	if container.Runtime.RuntimeName == "" {
+		container.Runtime.RuntimeName = containerData.Runtime.RuntimeName
+	}
+	if container.Runtime.ContainerName == "" {
+		container.Runtime.ContainerName = containerData.Runtime.ContainerName
+	}
+	if container.Runtime.ContainerImageName == "" {
+		container.Runtime.ContainerImageName = containerData.Runtime.ContainerImageName
+	}
+	if container.Runtime.ContainerImageDigest == "" {
+		container.Runtime.ContainerImageDigest = containerData.Runtime.ContainerImageDigest
+	}
 
 	// Kubernetes
-	container.K8s.Namespace = containerData.K8s.Namespace
-	container.K8s.PodName = containerData.K8s.PodName
-	container.K8s.PodUID = containerData.K8s.PodUID
-	container.K8s.ContainerName = containerData.K8s.ContainerName
+	if container.K8s.Namespace == "" {
+		container.K8s.Namespace = containerData.K8s.Namespace
+	}
+	if container.K8s.PodName == "" {
+		container.K8s.PodName = containerData.K8s.PodName
+	}
+	if container.K8s.PodLabels == nil {
+		container.K8s.PodLabels = containerData.K8s.PodLabels
+	}
+	if container.K8s.PodUID == "" {
+		container.K8s.PodUID = containerData.K8s.PodUID
+	}
+	if container.K8s.ContainerName == "" {
+		container.K8s.ContainerName = containerData.K8s.ContainerName
+	}
 }
 
 func containerRuntimeEnricher(
