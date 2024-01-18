@@ -174,8 +174,8 @@ func (g *GadgetTracerManager) AddContainer(_ context.Context, containerDefinitio
 				Namespace:     containerDefinition.Namespace,
 				PodName:       containerDefinition.Podname,
 				ContainerName: containerDefinition.Name,
+				PodLabels:     map[string]string{},
 			},
-			PodLabels: map[string]string{},
 		},
 	}
 	for _, l := range containerDefinition.Labels {
