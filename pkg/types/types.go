@@ -146,7 +146,7 @@ type BasicK8sMetadata struct {
 }
 
 func (b *BasicK8sMetadata) IsEnriched() bool {
-	return b.Namespace != "" && b.PodName != "" && b.ContainerName != "" && b.PodLabels != nil
+	return b.Namespace != "" && b.PodName != "" && b.ContainerName != ""
 }
 
 type K8sMetadata struct {

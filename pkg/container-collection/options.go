@@ -37,6 +37,7 @@ import (
 	containerhook "github.com/inspektor-gadget/inspektor-gadget/pkg/container-hook"
 	containerutils "github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/cgroups"
+	"github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/cri"
 	ociannotations "github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/oci-annotations"
 	runtimeclient "github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/runtime-client"
 	containerutilsTypes "github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/types"
@@ -84,12 +85,14 @@ func enrichContainerWithContainerData(containerData *runtimeclient.ContainerData
 func containerRuntimeEnricher(
 	runtimeName types.RuntimeName,
 	runtimeClient runtimeclient.ContainerRuntimeClient,
+	criClient *cri.CRIClient,
 	container *Container,
 ) bool {
 	// If the container is already enriched with the metadata a runtime client
 	// is able to provide, skip it.
-	if runtimeclient.IsEnrichedWithK8sMetadata(container.K8s.BasicK8sMetadata) &&
-		runtimeclient.IsEnrichedWithRuntimeMetadata(container.Runtime.BasicRuntimeMetadata) {
+	k8sEnriched := (criClient == nil && runtimeclient.IsEnrichedWithK8sMetadata(container.K8s.BasicK8sMetadata)) ||
+		(criClient != nil && runtimeclient.IsEnrichedWithK8sMetadataFromCri(container.K8s.BasicK8sMetadata))
+	if k8sEnriched && runtimeclient.IsEnrichedWithRuntimeMetadata(container.Runtime.BasicRuntimeMetadata) {
 		return true
 	}
 
@@ -105,6 +108,16 @@ func containerRuntimeEnricher(
 
 		// Container could be managed by another runtime, don't drop it.
 		return true
+	}
+
+	if criClient != nil {
+		podLabels, err := criClient.GetPodLabels(container.Runtime.ContainerID)
+		if err != nil {
+			// We could have non k8s containers, so they won't be visible to the cri client
+			log.Warnf("Runtime enricher (%s): failed to get pod labels: %s",
+				runtimeName, err)
+		}
+		containerData.K8s.PodLabels = podLabels
 	}
 
 	enrichContainerWithContainerData(containerData, container)
@@ -164,6 +177,19 @@ func WithContainerRuntimeEnrichment(runtime *containerutilsTypes.RuntimeConfig) 
 			return err
 		}
 
+		enrichPodLabels := true // TODO: make configurable
+		var criClient *cri.CRIClient
+		if enrichPodLabels {
+			criClient, err = containerutils.NewCriRuntimeClient(runtime)
+			if err != nil {
+				if !cc.disableContainerRuntimeWarnings {
+					log.Warnf("Runtime enricher (%s): failed to initialize CRI client: %s",
+						runtime.Name, err)
+				}
+				criClient = nil
+			}
+		}
+
 		switch runtime.Name {
 		case types.RuntimeNamePodman:
 			// Podman only supports runtime enrichment for initial containers otherwise it will deadlock.
@@ -176,7 +202,7 @@ func WithContainerRuntimeEnrichment(runtime *containerutilsTypes.RuntimeConfig) 
 			// unavailable and once it is up, we will start receiving the
 			// notifications for its containers thus we will be able to enrich them.
 			cc.containerEnrichers = append(cc.containerEnrichers, func(container *Container) bool {
-				return containerRuntimeEnricher(runtime.Name, runtimeClient, container)
+				return containerRuntimeEnricher(runtime.Name, runtimeClient, criClient, container)
 			})
 		}
 
@@ -213,6 +239,16 @@ func WithContainerRuntimeEnrichment(runtime *containerutilsTypes.RuntimeConfig) 
 			if pid > math.MaxUint32 {
 				log.Errorf("Container PID (%d) exceeds math.MaxUint32 (%d), skipping this container", pid, math.MaxUint32)
 				continue
+			}
+
+			if enrichPodLabels {
+				podLabels, err := criClient.GetPodLabels(containerDetails.Runtime.ContainerID)
+				if err != nil {
+					// We could have non k8s containers, so they won't be visible to the cri client
+					log.Debugf("Runtime enricher (%s): failed to get pod labels: %s",
+						runtime.Name, err)
+				}
+				containerDetails.K8s.PodLabels = podLabels
 			}
 
 			var c Container

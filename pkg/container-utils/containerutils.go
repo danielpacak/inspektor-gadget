@@ -27,6 +27,7 @@ import (
 	ocispec "github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/containerd"
+	"github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/cri"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/crio"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/docker"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/podman"
@@ -71,6 +72,45 @@ func NewContainerRuntimeClient(runtime *containerutilsTypes.RuntimeConfig) (runt
 		return podman.NewPodmanClient(socketPath), nil
 	default:
 		return nil, fmt.Errorf("unknown container runtime: %s (available %s)",
+			runtime.Name, strings.Join(AvailableRuntimes, ", "))
+	}
+}
+
+func NewCriRuntimeClient(runtime *containerutilsTypes.RuntimeConfig) (*cri.CRIClient, error) {
+	switch runtime.Name {
+	case types.RuntimeNameDocker:
+		// TODO configurable
+		socketPath := runtimeclient.CriDockerDefaultSocketPath
+		criClient, err := cri.NewCRIClient(types.RuntimeNameDocker, socketPath, docker.DefaultTimeout)
+		return &criClient, err
+	case types.RuntimeNameContainerd:
+		socketPath := runtime.SocketPath
+		if envsp := os.Getenv("INSPEKTOR_GADGET_CONTAINERD_SOCKETPATH"); envsp != "" && socketPath == "" {
+			socketPath = filepath.Join(host.HostRoot, envsp)
+		}
+		if socketPath == "" {
+			socketPath = runtimeclient.ContainerdDefaultSocketPath
+		}
+		criClient, err := cri.NewCRIClient(types.RuntimeNameCrio, socketPath, containerd.DefaultTimeout)
+		if err != nil {
+			return nil, err
+		}
+		return &criClient, nil
+	case types.RuntimeNameCrio:
+		socketPath := runtime.SocketPath
+		if envsp := os.Getenv("INSPEKTOR_GADGET_CRIO_SOCKETPATH"); envsp != "" && socketPath == "" {
+			socketPath = filepath.Join(host.HostRoot, envsp)
+		}
+		if socketPath == "" {
+			socketPath = runtimeclient.CrioDefaultSocketPath
+		}
+		criClient, err := cri.NewCRIClient(types.RuntimeNameCrio, socketPath, crio.DefaultTimeout)
+		if err != nil {
+			return nil, err
+		}
+		return &criClient, nil
+	default:
+		return nil, fmt.Errorf("unknown cri container runtime: %s (available %s)",
 			runtime.Name, strings.Join(AvailableRuntimes, ", "))
 	}
 }

@@ -214,6 +214,14 @@ func (c *CRIClient) getPodSandboxFromContainerID(containerID string) (*runtime.P
 	return getPodSandbox(c, containers[0].PodSandboxId)
 }
 
+func (c *CRIClient) GetPodLabels(containerID string) (map[string]string, error) {
+	podSandbox, err := c.getPodSandboxFromContainerID(containerID)
+	if err != nil {
+		return nil, err
+	}
+	return podSandbox.GetLabels(), nil
+}
+
 func (c *CRIClient) Close() error {
 	if c.conn != nil {
 		return c.conn.Close()

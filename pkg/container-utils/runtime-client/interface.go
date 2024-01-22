@@ -28,6 +28,7 @@ const (
 	PodmanDefaultSocketPath     = "/run/podman/podman.sock"
 	ContainerdDefaultSocketPath = "/run/containerd/containerd.sock"
 	DockerDefaultSocketPath     = "/run/docker.sock"
+	CriDockerDefaultSocketPath  = "/run/cri-dockerd.sock"
 )
 
 var ErrPauseContainer = errors.New("it is a pause container")
@@ -156,6 +157,12 @@ func EnrichWithK8sMetadata(container *ContainerData, labels map[string]string) {
 // the Kubernetes metadata a container runtime client is able to provide.
 func IsEnrichedWithK8sMetadata(k8s types.BasicK8sMetadata) bool {
 	return k8s.IsEnriched()
+}
+
+// IsEnrichedWithK8sMetadata returns true if the container already contains
+// the Kubernetes metadata the cri runtime is able to provide
+func IsEnrichedWithK8sMetadataFromCri(k8s types.BasicK8sMetadata) bool {
+	return k8s.IsEnriched() && k8s.PodLabels != nil
 }
 
 // IsEnrichedWithRuntimeMetadata returns true if the container already contains
