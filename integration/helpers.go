@@ -195,6 +195,9 @@ func BuildCommonData(namespace string, options ...CommonDataOption) eventtypes.C
 				// Pod and Container name are defined by BusyboxPodCommand.
 				PodName:       "test-pod",
 				ContainerName: "test-pod",
+				PodLabels: map[string]string{
+					"run": "test-pod",
+				},
 			},
 		},
 		// TODO: Include the Node
