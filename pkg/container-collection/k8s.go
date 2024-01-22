@@ -64,7 +64,7 @@ func NewK8sClient(nodeName string) (*K8sClient, error) {
 	runtimeClient, err := containerutils.NewContainerRuntimeClient(
 		&containerutilsTypes.RuntimeConfig{
 			Name: types.String2RuntimeName(list[0]),
-		})
+		}, true)
 	if err != nil {
 		return nil, err
 	}

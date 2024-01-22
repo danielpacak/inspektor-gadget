@@ -43,20 +43,20 @@ var AvailableRuntimes = []string{
 	types.RuntimeNamePodman.String(),
 }
 
-func NewContainerRuntimeClient(runtime *containerutilsTypes.RuntimeConfig) (runtimeclient.ContainerRuntimeClient, error) {
+func NewContainerRuntimeClient(runtime *containerutilsTypes.RuntimeConfig, useCri bool) (runtimeclient.ContainerRuntimeClient, error) {
 	switch runtime.Name {
 	case types.RuntimeNameDocker:
 		socketPath := runtime.SocketPath
 		if envsp := os.Getenv("INSPEKTOR_GADGET_DOCKER_SOCKETPATH"); envsp != "" && socketPath == "" {
 			socketPath = filepath.Join(host.HostRoot, envsp)
 		}
-		return docker.NewDockerClient(socketPath)
+		return docker.NewDockerClient(socketPath, useCri)
 	case types.RuntimeNameContainerd:
 		socketPath := runtime.SocketPath
 		if envsp := os.Getenv("INSPEKTOR_GADGET_CONTAINERD_SOCKETPATH"); envsp != "" && socketPath == "" {
 			socketPath = filepath.Join(host.HostRoot, envsp)
 		}
-		return containerd.NewContainerdClient(socketPath, runtime.Extra)
+		return containerd.NewContainerdClient(socketPath, runtime.Extra, useCri)
 	case types.RuntimeNameCrio:
 		socketPath := runtime.SocketPath
 		if envsp := os.Getenv("INSPEKTOR_GADGET_CRIO_SOCKETPATH"); envsp != "" && socketPath == "" {

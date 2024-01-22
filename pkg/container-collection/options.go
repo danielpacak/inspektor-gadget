@@ -155,7 +155,8 @@ func WithMultipleContainerRuntimesEnrichment(runtimes []*containerutilsTypes.Run
 // ContainerCollection.Initialize(WithContainerRuntimeEnrichment(*RuntimeConfig))
 func WithContainerRuntimeEnrichment(runtime *containerutilsTypes.RuntimeConfig) ContainerCollectionOption {
 	return func(cc *ContainerCollection) error {
-		runtimeClient, err := containerutils.NewContainerRuntimeClient(runtime)
+		useCRIClient := false // Needs to be a flag
+		runtimeClient, err := containerutils.NewContainerRuntimeClient(runtime, useCRIClient)
 		if err != nil {
 			if !cc.disableContainerRuntimeWarnings {
 				log.Warnf("Runtime enricher (%s): failed to initialize container runtime: %s",

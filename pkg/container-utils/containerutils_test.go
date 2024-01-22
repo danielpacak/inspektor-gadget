@@ -31,7 +31,7 @@ func newRuntimeClient(t *testing.T, runtime types.RuntimeName, sPath string) (ru
 		Name:       runtime,
 		SocketPath: sPath,
 	}
-	rc, err := NewContainerRuntimeClient(config)
+	rc, err := NewContainerRuntimeClient(config, false)
 	t.Cleanup(func() {
 		if rc != nil {
 			rc.Close()

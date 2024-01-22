@@ -371,7 +371,7 @@ func digestFromRef(runtime types.RuntimeName, imageRef string) string {
 	switch runtime {
 	case types.RuntimeNameContainerd:
 	case types.RuntimeNameCrio:
-		// for crio imageRef has the following structure:
+		// for crio and containerd imageRef has the following structure:
 		// k8s.gcr.io/kube-apiserver@sha256:4a165184c779c0a4f2d31d6676b7790589b977c3c8fbc0577dac2544fd69cade
 		// the hash being the image digest
 		return strings.Split(imageRef, "@")[1]
@@ -383,7 +383,7 @@ func digestFromRef(runtime types.RuntimeName, imageRef string) string {
 			return splitted[1]
 		}
 	}
-	return "Unknown runtime"
+	return "Unknown cri runtime"
 }
 
 func criContainerToContainerData(runtimeName types.RuntimeName, container CRIContainer, podSandbox *runtime.PodSandbox) *runtimeclient.ContainerData {
@@ -407,7 +407,7 @@ func criContainerToContainerData(runtimeName types.RuntimeName, container CRICon
 	// Fill K8S information.
 	runtimeclient.EnrichWithK8sMetadata(containerData, container.GetLabels())
 
-	// Initial CRI container labels are stored in the pod sandbox
+	// Initial K8s labels are stored in the pod sandbox
 	containerData.K8s.BasicK8sMetadata.PodLabels = podSandbox.GetLabels()
 
 	// CRI-O does not use the same container name of Kubernetes as containerd.

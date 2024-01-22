@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/cri"
 	runtimeclient "github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/runtime-client"
 	containerutilsTypes "github.com/inspektor-gadget/inspektor-gadget/pkg/container-utils/types"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/types"
@@ -47,10 +48,15 @@ type ContainerdClient struct {
 	ctx    context.Context
 }
 
-func NewContainerdClient(socketPath string, config *containerutilsTypes.ExtraConfig) (runtimeclient.ContainerRuntimeClient, error) {
+func NewContainerdClient(socketPath string, config *containerutilsTypes.ExtraConfig, useCri bool) (runtimeclient.ContainerRuntimeClient, error) {
 	if socketPath == "" {
 		socketPath = runtimeclient.ContainerdDefaultSocketPath
 	}
+	if useCri {
+		criClient, err := cri.NewCRIClient(types.RuntimeNameDocker, socketPath, DefaultTimeout)
+		return &criClient, err
+	}
+
 	namespace := constants.K8sContainerdNamespace
 	if config != nil && config.Namespace != "" {
 		namespace = config.Namespace

@@ -87,7 +87,7 @@ func TestRuntimeClientInterface(t *testing.T) {
 			config := &containerutilsTypes.RuntimeConfig{
 				Name: runtime,
 			}
-			rc, err := containerutils.NewContainerRuntimeClient(config)
+			rc, err := containerutils.NewContainerRuntimeClient(config, false)
 			t.Cleanup(func() {
 				if rc != nil {
 					rc.Close()
