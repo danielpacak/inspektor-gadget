@@ -82,16 +82,61 @@ func listContainers(c *CRIClient, filter *runtime.ContainerFilter) ([]*runtime.C
 	return res.GetContainers(), nil
 }
 
+func listPodSandboxes(c *CRIClient, filter *runtime.PodSandboxFilter) ([]*runtime.PodSandbox, error) {
+	podRequest := &runtime.ListPodSandboxRequest{}
+	if filter != nil {
+		podRequest.Filter = filter
+	}
+
+	podRes, err := c.client.ListPodSandbox(context.Background(), podRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return podRes.Items, nil
+}
+
+func getPodSandbox(c *CRIClient, podSandboxID string) (*runtime.PodSandbox, error) {
+	podSandboxes, err := listPodSandboxes(c, &runtime.PodSandboxFilter{
+		Id: podSandboxID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(podSandboxes) == 0 {
+		return nil, fmt.Errorf("pod sandbox %q not found", podSandboxID)
+	}
+	if len(podSandboxes) > 1 {
+		log.Warnf("CRIClient: found multiple pod sandboxes (%d) with ID %q. Taking the first one: %+v",
+			len(podSandboxID), podSandboxID, podSandboxes)
+	}
+	return podSandboxes[0], nil
+}
+
 func (c *CRIClient) GetContainers() ([]*runtimeclient.ContainerData, error) {
 	containers, err := listContainers(c, nil)
 	if err != nil {
 		return nil, err
 	}
 
+	podSandboxes, err := listPodSandboxes(c, nil)
+	if err != nil {
+		return nil, err
+	}
+	podSandboxesMap := make(map[string]*runtime.PodSandbox, len(podSandboxes))
+	for _, podSandbox := range podSandboxes {
+		podSandboxesMap[podSandbox.Id] = podSandbox
+	}
+
 	ret := make([]*runtimeclient.ContainerData, len(containers))
 
 	for i, container := range containers {
-		ret[i] = CRIContainerToContainerData(c.Name, container)
+		podSandbox, ok := podSandboxesMap[container.PodSandboxId]
+		if !ok {
+			return nil, fmt.Errorf("pod sandbox %q not found for container %q", container.PodSandboxId, container.Id)
+		}
+		ret[i] = criContainerToContainerData(c.Name, container, podSandbox)
 	}
 
 	return ret, nil
@@ -113,7 +158,12 @@ func (c *CRIClient) GetContainer(containerID string) (*runtimeclient.ContainerDa
 			len(containers), containerID, containers)
 	}
 
-	return CRIContainerToContainerData(c.Name, containers[0]), nil
+	podSandbox, err := getPodSandbox(c, containers[0].PodSandboxId)
+	if err != nil {
+		return nil, err
+	}
+
+	return criContainerToContainerData(c.Name, containers[0], podSandbox), nil
 }
 
 func (c *CRIClient) GetContainerDetails(containerID string) (*runtimeclient.ContainerDetailsData, error) {
@@ -132,7 +182,36 @@ func (c *CRIClient) GetContainerDetails(containerID string) (*runtimeclient.Cont
 		return nil, err
 	}
 
-	return parseContainerDetailsData(c.Name, res.Status, res.Info)
+	podSandbox, err := c.getPodSandboxFromContainerID(containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseContainerDetailsData(c.Name, res.Status, res.Info, podSandbox)
+}
+
+func (c *CRIClient) getPodSandboxFromContainerID(containerID string) (*runtime.PodSandbox, error) {
+	containerID, err := runtimeclient.ParseContainerID(c.Name, containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	containers, err := listContainers(c, &runtime.ContainerFilter{
+		Id: containerID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(containers) == 0 {
+		return nil, fmt.Errorf("container %q not found", containerID)
+	}
+	if len(containers) > 1 {
+		log.Warnf("CRIClient: multiple containers (%d) with ID %q. Taking the first one: %+v",
+			len(containers), containerID, containers)
+	}
+
+	return getPodSandbox(c, containers[0].PodSandboxId)
 }
 
 func (c *CRIClient) Close() error {
@@ -146,11 +225,11 @@ func (c *CRIClient) Close() error {
 // parseContainerDetailsData parses the container status and extra information
 // returned by ContainerStatus() into a ContainerDetailsData structure.
 func parseContainerDetailsData(runtimeName types.RuntimeName, containerStatus CRIContainer,
-	extraInfo map[string]string,
+	extraInfo map[string]string, podSandbox *runtime.PodSandbox,
 ) (*runtimeclient.ContainerDetailsData, error) {
 	// Create container details structure to be filled.
 	containerDetailsData := &runtimeclient.ContainerDetailsData{
-		ContainerData: *CRIContainerToContainerData(runtimeName, containerStatus),
+		ContainerData: *criContainerToContainerData(runtimeName, containerStatus, podSandbox),
 	}
 
 	// Parse the extra info and fill the data.
@@ -288,12 +367,28 @@ type CRIContainer interface {
 	GetImageRef() string
 }
 
-func CRIContainerToContainerData(runtimeName types.RuntimeName, container CRIContainer) *runtimeclient.ContainerData {
+func digestFromRef(runtime types.RuntimeName, imageRef string) string {
+	switch runtime {
+	case types.RuntimeNameContainerd:
+	case types.RuntimeNameCrio:
+		// for crio imageRef has the following structure:
+		// k8s.gcr.io/kube-apiserver@sha256:4a165184c779c0a4f2d31d6676b7790589b977c3c8fbc0577dac2544fd69cade
+		// the hash being the image digest
+		return strings.Split(imageRef, "@")[1]
+	case types.RuntimeNameDocker:
+		splitted := strings.Split(imageRef, "@")
+		if len(splitted) == 1 {
+			return imageRef
+		} else {
+			return splitted[1]
+		}
+	}
+	return "Unknown runtime"
+}
+
+func criContainerToContainerData(runtimeName types.RuntimeName, container CRIContainer, podSandbox *runtime.PodSandbox) *runtimeclient.ContainerData {
 	containerMetadata := container.GetMetadata()
 	image := container.GetImage()
-	// for crio imageRef has the following structure:
-	// k8s.gcr.io/kube-apiserver@sha256:4a165184c779c0a4f2d31d6676b7790589b977c3c8fbc0577dac2544fd69cade
-	// the hash being the image digest
 	imageRef := container.GetImageRef()
 
 	containerData := &runtimeclient.ContainerData{
@@ -303,7 +398,7 @@ func CRIContainerToContainerData(runtimeName types.RuntimeName, container CRICon
 				ContainerName:        strings.TrimPrefix(containerMetadata.GetName(), "/"),
 				RuntimeName:          runtimeName,
 				ContainerImageName:   image.GetImage(),
-				ContainerImageDigest: strings.Split(imageRef, "@")[1],
+				ContainerImageDigest: digestFromRef(runtimeName, imageRef),
 			},
 			State: containerStatusStateToRuntimeClientState(container.GetState()),
 		},
@@ -311,6 +406,9 @@ func CRIContainerToContainerData(runtimeName types.RuntimeName, container CRICon
 
 	// Fill K8S information.
 	runtimeclient.EnrichWithK8sMetadata(containerData, container.GetLabels())
+
+	// Initial CRI container labels are stored in the pod sandbox
+	containerData.K8s.BasicK8sMetadata.PodLabels = podSandbox.GetLabels()
 
 	// CRI-O does not use the same container name of Kubernetes as containerd.
 	// Instead, it uses a composed name as Docker does, but such name is not
