@@ -1,4 +1,4 @@
-// Copyright 2023 The Inspektor Gadget authors
+// Copyright 2023-2024 The Inspektor Gadget authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import (
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/gadgets"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/gadgets/run/types"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/logger"
+	metadatav1 "github.com/inspektor-gadget/inspektor-gadget/pkg/metadata/v1"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/oci"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/params"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/parser"
@@ -126,7 +127,7 @@ func (g *GadgetDesc) Experimental() bool {
 
 // getGadgetType returns the type of the gadget according to the gadget being run.
 func getGadgetType(spec *ebpf.CollectionSpec,
-	gadgetMetadata *types.GadgetMetadata,
+	gadgetMetadata *metadatav1.GadgetMetadata,
 ) (gadgets.GadgetType, error) {
 	switch {
 	case len(gadgetMetadata.Structs) == 0:
@@ -153,7 +154,7 @@ func getGadgetInfo(params *params.Params, args []string, secretBytes []byte, log
 
 	ret := &types.GadgetInfo{
 		ProgContent:    gadget.EbpfObject,
-		GadgetMetadata: &types.GadgetMetadata{},
+		GadgetMetadata: &metadatav1.GadgetMetadata{},
 	}
 
 	spec, err := loadSpec(ret.ProgContent)
@@ -163,7 +164,7 @@ func getGadgetInfo(params *params.Params, args []string, secretBytes []byte, log
 
 	if bytes.Equal(gadget.Metadata, ocispec.DescriptorEmptyJSON.Data) {
 		// metadata is not present. synthesize something on the fly from the spec
-		if err := ret.GadgetMetadata.Populate(spec); err != nil {
+		if err := types.Populate(ret.GadgetMetadata, spec); err != nil {
 			return nil, err
 		}
 	} else {
@@ -173,7 +174,7 @@ func getGadgetInfo(params *params.Params, args []string, secretBytes []byte, log
 			return nil, fmt.Errorf("unmarshaling metadata: %w", err)
 		}
 
-		if err := ret.GadgetMetadata.Validate(spec); err != nil {
+		if err := types.Validate(ret.GadgetMetadata, spec); err != nil {
 			if !validate {
 				logger.Warnf("gadget metadata is not valid: %v", err)
 			} else {
@@ -255,7 +256,7 @@ func getTypeHint(typ btf.Type) params.TypeHint {
 
 // fillTypeHints fills the TypeHint field in the ebpf parameters according to the BTF information
 // about those constants.
-func fillTypeHints(spec *ebpf.CollectionSpec, params map[string]types.EBPFParam) error {
+func fillTypeHints(spec *ebpf.CollectionSpec, params map[string]metadatav1.EBPFParam) error {
 	for varName, p := range params {
 		var btfVar *btf.Var
 		err := spec.Types.TypeByName(varName, &btfVar)
@@ -420,7 +421,7 @@ func addL4EndpointColumns(
 	})
 }
 
-func field2ColumnAttrs(field *types.Field) columns.Attributes {
+func field2ColumnAttrs(field *metadatav1.Field) columns.Attributes {
 	fieldAttrs := field.Attributes
 
 	defaultOpts := columns.GetDefault()
@@ -447,18 +448,18 @@ func field2ColumnAttrs(field *types.Field) columns.Attributes {
 	}
 
 	switch fieldAttrs.Alignment {
-	case types.AlignmentLeft:
+	case metadatav1.AlignmentLeft:
 		attrs.Alignment = columns.AlignLeft
-	case types.AlignmentRight:
+	case metadatav1.AlignmentRight:
 		attrs.Alignment = columns.AlignRight
 	}
 
 	switch fieldAttrs.Ellipsis {
-	case types.EllipsisStart:
+	case metadatav1.EllipsisStart:
 		attrs.EllipsisType = ellipsis.Start
-	case types.EllipsisMiddle:
+	case metadatav1.EllipsisMiddle:
 		attrs.EllipsisType = ellipsis.Middle
-	case types.EllipsisEnd:
+	case metadatav1.EllipsisEnd:
 		attrs.EllipsisType = ellipsis.End
 	}
 
@@ -480,7 +481,7 @@ func (g *GadgetDesc) getColumns(info *types.GadgetInfo) (*columns.Columns[types.
 	l4endpointCounter := 0
 	timestampsCounter := 0
 
-	fields := map[string]types.Field{}
+	fields := map[string]metadatav1.Field{}
 	for _, field := range eventStruct.Fields {
 		fields[field.Name] = field
 	}
@@ -784,7 +785,7 @@ func simpleTypeFromBTF(typ btf.Type) *types.Type {
 
 func calculateColumnsForClient(
 	eventFactory *types.EventFactory,
-	gadgetMetadata *types.GadgetMetadata,
+	gadgetMetadata *metadatav1.GadgetMetadata,
 	progContent []byte,
 	logger logger.Logger,
 ) ([]types.ColumnDesc, error) {
