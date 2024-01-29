@@ -101,6 +101,8 @@ type Tracer struct {
 	ringbufReader *ringbuf.Reader
 	perfReader    *perf.Reader
 
+	histMap *ebpf.Map
+
 	// Snapshotters related
 	linksSnapshotters []*linkSnapshotter
 
@@ -312,12 +314,14 @@ type loadingOptions struct {
 	collectionOptions ebpf.CollectionOptions
 	tracerMapName     string
 	topperMapName     string
+	histMapName       string
 }
 
 func (t *Tracer) loadeBPFObjects(opts loadingOptions) error {
 	var err error
 
 	tracerMapName := opts.tracerMapName
+	histMapName := opts.histMapName
 
 	if tracerMapName != "" && t.createdByTracerMapMacro(tracerMapName) {
 		err = t.handleTracerMapDefinition(tracerMapName)
@@ -350,11 +354,30 @@ func (t *Tracer) loadeBPFObjects(opts loadingOptions) error {
 		t.topperMap = t.collection.Maps[opts.topperMapName]
 	}
 
+	if histMapName != "" {
+		var ok bool
+		t.histMap, ok = t.collection.Maps[histMapName]
+		if !ok {
+			return fmt.Errorf("missing map named %q", histMapName)
+		}
+	}
+
 	return err
 }
 
 func (t *Tracer) handleTracers() (string, error) {
 	_, tracer := getAnyMapElem(t.config.Metadata.Tracers)
+
+	traceMap := t.spec.Maps[tracer.MapName]
+	if traceMap == nil {
+		return "", fmt.Errorf("map %q not found", tracer.MapName)
+	}
+
+	return tracer.MapName, nil
+}
+
+func (t *Tracer) handleProfilers() (string, error) {
+	_, tracer := getAnyMapElem(t.config.Metadata.Profilers)
 
 	traceMap := t.spec.Maps[tracer.MapName]
 	if traceMap == nil {
@@ -445,7 +468,7 @@ func (t *Tracer) installTracer(gadgetCtx gadgets.GadgetContext) error {
 	params := gadgetCtx.GadgetParams()
 
 	var err error
-	var tracerMapName, topperMapName string
+	var tracerMapName, topperMapName, histMapName string
 
 	mapReplacements := map[string]*ebpf.Map{}
 
@@ -460,7 +483,12 @@ func (t *Tracer) installTracer(gadgetCtx gadgets.GadgetContext) error {
 	case len(t.config.Metadata.Tracers) > 0:
 		tracerMapName, err = t.handleTracers()
 		if err != nil {
-			return fmt.Errorf("handling trace programs: %w", err)
+			return fmt.Errorf("handling tracer programs: %w", err)
+		}
+	case len(t.config.Metadata.Profilers) > 0:
+		histMapName, err = t.handleProfilers()
+		if err != nil {
+			return fmt.Errorf("handling profiler programs: %w", err)
 		}
 	case len(t.config.Metadata.Toppers) > 0:
 		_, topper := getAnyMapElem(t.config.Metadata.Toppers)
@@ -496,6 +524,7 @@ func (t *Tracer) installTracer(gadgetCtx gadgets.GadgetContext) error {
 		collectionOptions: ebpf.CollectionOptions{MapReplacements: mapReplacements},
 		tracerMapName:     tracerMapName,
 		topperMapName:     topperMapName,
+		histMapName:       histMapName,
 	})
 	if err != nil {
 		return fmt.Errorf("loading eBPF objects: %w", err)
@@ -1052,6 +1081,30 @@ func (t *Tracer) runToppers(gadgetCtx gadgets.GadgetContext) {
 	}
 }
 
+func (t *Tracer) collectProfiler(gadgetCtx gadgets.GadgetContext) error {
+	cb := t.processEventFunc(gadgetCtx)
+
+	events := []*types.Event{}
+
+	key := make([]byte, t.histMap.KeySize(), t.histMap.KeySize())
+	value := make([]byte, t.histMap.ValueSize(), t.histMap.ValueSize())
+
+	it := t.histMap.Iterate()
+	for it.Next(&key, &value) {
+		event := cb(value)
+		events = append(events, event)
+	}
+
+	err := it.Err()
+	if err != nil {
+		return err
+	}
+
+	t.eventArrayCallback(events)
+
+	return nil
+}
+
 func (t *Tracer) Run(gadgetCtx gadgets.GadgetContext) error {
 	if err := t.installTracer(gadgetCtx); err != nil {
 		t.Close()
@@ -1069,6 +1122,10 @@ func (t *Tracer) Run(gadgetCtx gadgets.GadgetContext) error {
 	}
 
 	gadgetcontext.WaitForTimeoutOrDone(gadgetCtx)
+
+	if t.histMap != nil {
+		return t.collectProfiler(gadgetCtx)
+	}
 
 	return nil
 }
