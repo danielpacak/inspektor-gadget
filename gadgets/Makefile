@@ -20,6 +20,7 @@ GADGETS = \
 	snapshot_process \
 	snapshot_socket \
 	ci/sched_cls_drop \
+	profile_blockio \
 	#
 
 .PHONY: all
