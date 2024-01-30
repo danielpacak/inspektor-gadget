@@ -49,6 +49,8 @@ import (
 	eventtypes "github.com/inspektor-gadget/inspektor-gadget/pkg/types"
 	bpfiterns "github.com/inspektor-gadget/inspektor-gadget/pkg/utils/bpf-iter-ns"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/utils/experimental"
+
+	histogram "github.com/inspektor-gadget/inspektor-gadget/pkg/histogram"
 )
 
 // keep aligned with pkg/gadgets/common/types.h
@@ -1093,6 +1095,11 @@ func (t *Tracer) collectProfiler(gadgetCtx gadgets.GadgetContext) error {
 	for it.Next(&key, &value) {
 		event := cb(value)
 		events = append(events, event)
+
+		hist := &histogram.Histogram{
+			Intervals: histogram.NewIntervalsFromExp2Slots((*(*[]uint32)(unsafe.Pointer(&event.Blob[0])))[:t.histMap.ValueSize()>>2]),
+		}
+		fmt.Printf("%v\n", hist)
 	}
 
 	err := it.Err()
