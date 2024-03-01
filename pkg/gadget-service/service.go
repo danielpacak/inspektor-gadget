@@ -292,7 +292,7 @@ func (s *Service) RunBuiltInGadget(runGadget api.BuiltInGadgetManager_RunBuiltIn
 	}()
 
 	// Hand over to runtime
-	results, err := runtime.RunGadget(gadgetCtx)
+	results, err := runtime.RunBuiltInGadget(gadgetCtx)
 	if err != nil {
 		return fmt.Errorf("running gadget: %w", err)
 	}

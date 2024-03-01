@@ -310,7 +310,7 @@ func (r *Runtime) GetGadgetInfo(ctx context.Context, desc gadgets.GadgetDesc, ga
 	return ret, nil
 }
 
-func (r *Runtime) RunGadget(gadgetCtx runtime.GadgetContext) (runtime.CombinedGadgetResult, error) {
+func (r *Runtime) RunBuiltInGadget(gadgetCtx runtime.GadgetContext) (runtime.CombinedGadgetResult, error) {
 	paramMap := make(map[string]string)
 	gadgets.ParamsToMap(
 		paramMap,
@@ -385,7 +385,7 @@ func (r *Runtime) runGadgetOnTargets(
 		wg.Add(1)
 		go func(target target) {
 			gadgetCtx.Logger().Debugf("running gadget on node %q", target.node)
-			res, err := r.runGadget(gadgetCtx, target, paramMap)
+			res, err := r.runBuiltInGadget(gadgetCtx, target, paramMap)
 			resultsLock.Lock()
 			results[target.node] = &runtime.GadgetResult{
 				Payload: res,
@@ -422,7 +422,7 @@ func (r *Runtime) dialContext(dialCtx context.Context, target target, timeout ti
 	return conn, nil
 }
 
-func (r *Runtime) runGadget(gadgetCtx runtime.GadgetContext, target target, allParams map[string]string) ([]byte, error) {
+func (r *Runtime) runBuiltInGadget(gadgetCtx runtime.GadgetContext, target target, allParams map[string]string) ([]byte, error) {
 	// Notice that we cannot use gadgetCtx.Context() here, as that would - when cancelled by the user - also cancel the
 	// underlying gRPC connection. That would then lead to results not being received anymore (mostly for profile
 	// gadgets.)
