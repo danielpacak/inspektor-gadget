@@ -82,10 +82,10 @@ func (r *Runtime) ParamDescs() params.ParamDescs {
 	return nil
 }
 
-func (r *Runtime) GetGadgetInfo(_ context.Context, desc gadgets.GadgetDesc, pars *params.Params, args []string) (*runTypes.GadgetInfo, error) {
+func (r *Runtime) GetBuiltInGadgetInfo(_ context.Context, desc gadgets.GadgetDesc, pars *params.Params, args []string) (*runTypes.GadgetInfo, error) {
 	runDesc, ok := desc.(runTypes.RunGadgetDesc)
 	if !ok {
-		return nil, fmt.Errorf("GetGadgetInfo not supported for gadget %s", desc.Name())
+		return nil, fmt.Errorf("GetRunGadgetInfo not supported for gadget %s", desc.Name())
 	}
 	return runDesc.GetGadgetInfo(pars, args)
 }

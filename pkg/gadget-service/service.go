@@ -88,7 +88,7 @@ func (s *Service) GetInfo(ctx context.Context, request *api.InfoRequest) (*api.I
 	}, nil
 }
 
-func (s *Service) GetGadgetInfo(ctx context.Context, req *api.GetBuiltInGadgetInfoRequest) (*api.GetBuiltInGadgetInfoResponse, error) {
+func (s *Service) GetRunGadgetInfo(ctx context.Context, req *api.GetRunGadgetInfoRequest) (*api.GetRunGadgetInfoResponse, error) {
 	gadgetDesc := gadgetregistry.Get(gadgets.CategoryNone, "run")
 	if gadgetDesc == nil {
 		return nil, errors.New("run gadget not found")
@@ -97,7 +97,7 @@ func (s *Service) GetGadgetInfo(ctx context.Context, req *api.GetBuiltInGadgetIn
 	params := gadgetDesc.ParamDescs().ToParams()
 	params.CopyFromMap(req.Params, "")
 
-	ret, err := s.runtime.GetGadgetInfo(ctx, gadgetDesc, params, req.Args)
+	ret, err := s.runtime.GetBuiltInGadgetInfo(ctx, gadgetDesc, params, req.Args)
 	if err != nil {
 		return nil, fmt.Errorf("getting gadget info: %w", err)
 	}
@@ -107,7 +107,7 @@ func (s *Service) GetGadgetInfo(ctx context.Context, req *api.GetBuiltInGadgetIn
 		return nil, fmt.Errorf("marshal gadget info response: %w", err)
 	}
 
-	return &api.GetBuiltInGadgetInfoResponse{
+	return &api.GetRunGadgetInfoResponse{
 		Info: retJSON,
 	}, nil
 }
@@ -164,7 +164,7 @@ func (s *Service) RunBuiltInGadget(runGadget api.BuiltInGadgetManager_RunBuiltIn
 	var gadgetInfo *runTypes.GadgetInfo
 
 	if c, ok := gadgetDesc.(runTypes.RunGadgetDesc); ok {
-		gadgetInfo, err = s.runtime.GetGadgetInfo(runGadget.Context(), gadgetDesc, gadgetParams, request.Args)
+		gadgetInfo, err = s.runtime.GetBuiltInGadgetInfo(runGadget.Context(), gadgetDesc, gadgetParams, request.Args)
 		if err != nil {
 			return fmt.Errorf("getting gadget info: %w", err)
 		}

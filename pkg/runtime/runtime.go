@@ -88,9 +88,9 @@ type Runtime interface {
 	Close() error
 	GlobalParamDescs() params.ParamDescs
 	ParamDescs() params.ParamDescs
-	// GetGadgetInfo returns information about the gadget that is being run. It only makes sense
+	// GetBuiltInGadgetInfo returns information about the gadget that is being run. It only makes sense
 	// for the run gadget.
-	GetGadgetInfo(context.Context, gadgets.GadgetDesc, *params.Params, []string) (*runTypes.GadgetInfo, error)
+	GetBuiltInGadgetInfo(context.Context, gadgets.GadgetDesc, *params.Params, []string) (*runTypes.GadgetInfo, error)
 	RunBuiltInGadget(gadgetCtx GadgetContext) (CombinedGadgetResult, error)
 	GetCatalog() (*Catalog, error)
 	SetDefaultValue(params.ValueHint, string)

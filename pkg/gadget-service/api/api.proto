@@ -77,7 +77,7 @@ message InfoResponse {
   bool experimental = 3;
 }
 
-message GetBuiltInGadgetInfoRequest {
+message GetRunGadgetInfoRequest {
   // params are the gadget's parameters
   map<string, string> params = 1;
 
@@ -85,7 +85,7 @@ message GetBuiltInGadgetInfoRequest {
   repeated string args = 2;
 }
 
-message GetBuiltInGadgetInfoResponse {
+message GetRunGadgetInfoResponse {
   // This is the GadgetInfo structure defined in pkg/gadgets/run/types/types.go encoded in json.
   // TODO: Ideally we should define the message here, but the implementation is changing too fast.
   // We'll make it once the implementation is more stable.
@@ -94,6 +94,6 @@ message GetBuiltInGadgetInfoResponse {
 
 service BuiltInGadgetManager {
   rpc GetInfo(InfoRequest) returns (InfoResponse) {}
-  rpc GetBuiltInGadgetInfo(GetBuiltInGadgetInfoRequest) returns (GetBuiltInGadgetInfoResponse) {}
+  rpc GetRunGadgetInfo(GetRunGadgetInfoRequest) returns (GetRunGadgetInfoResponse) {}
   rpc RunBuiltInGadget(stream BuiltInGadgetControlRequest) returns (stream GadgetEvent) {}
 }

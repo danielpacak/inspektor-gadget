@@ -1,4 +1,4 @@
-// Copyright 2023 The Inspektor Gadget authors
+// Copyright 2023-2024 The Inspektor Gadget authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ func (g *GadgetDesc) Category() string {
 
 func (g *GadgetDesc) Type() gadgets.GadgetType {
 	// Placeholder for gadget type. The actual type is determined at runtime by using
-	// GetGadgetInfo()
+	// GetRunGadgetInfo()
 	return gadgets.TypeRun
 }
 

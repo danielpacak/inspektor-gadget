@@ -255,7 +255,7 @@ func buildCommandFromGadget(
 			onlyArgs := cmd.Flags().Args()
 			if isRunGadget && len(onlyArgs) > 0 {
 				var err error
-				runGadgetInfo, err = runtime.GetGadgetInfo(context.TODO(), gadgetDesc, gadgetParams, onlyArgs)
+				runGadgetInfo, err = runtime.GetBuiltInGadgetInfo(context.TODO(), gadgetDesc, gadgetParams, onlyArgs)
 				if err != nil {
 					return fmt.Errorf("getting gadget info: %w", err)
 				}

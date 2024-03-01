@@ -276,7 +276,7 @@ func (r *Runtime) getTargets(ctx context.Context, params *params.Params) ([]targ
 	return nil, fmt.Errorf("unsupported connection mode")
 }
 
-func (r *Runtime) GetGadgetInfo(ctx context.Context, desc gadgets.GadgetDesc, gadgetParams *params.Params, args []string) (*runTypes.GadgetInfo, error) {
+func (r *Runtime) GetBuiltInGadgetInfo(ctx context.Context, desc gadgets.GadgetDesc, gadgetParams *params.Params, args []string) (*runTypes.GadgetInfo, error) {
 	timeout := time.Second * time.Duration(r.globalParams.Get(ParamConnectionTimeout).AsUint16())
 	ctx, cancelDial := context.WithTimeout(ctx, timeout)
 	defer cancelDial()
@@ -293,11 +293,11 @@ func (r *Runtime) GetGadgetInfo(ctx context.Context, desc gadgets.GadgetDesc, ga
 	allParams := make(map[string]string)
 	gadgetParams.CopyToMap(allParams, "")
 
-	in := &api.GetBuiltInGadgetInfoRequest{
+	in := &api.GetRunGadgetInfoRequest{
 		Params: allParams,
 		Args:   args,
 	}
-	out, err := client.GetBuiltInGadgetInfo(ctx, in)
+	out, err := client.GetRunGadgetInfo(ctx, in)
 	if err != nil {
 		return nil, fmt.Errorf("getting gadget info: %w", err)
 	}

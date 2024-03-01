@@ -23,7 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BuiltInGadgetManagerClient interface {
 	GetInfo(ctx context.Context, in *InfoRequest, opts ...grpc.CallOption) (*InfoResponse, error)
-	GetBuiltInGadgetInfo(ctx context.Context, in *GetBuiltInGadgetInfoRequest, opts ...grpc.CallOption) (*GetBuiltInGadgetInfoResponse, error)
+	GetRunGadgetInfo(ctx context.Context, in *GetRunGadgetInfoRequest, opts ...grpc.CallOption) (*GetRunGadgetInfoResponse, error)
 	RunBuiltInGadget(ctx context.Context, opts ...grpc.CallOption) (BuiltInGadgetManager_RunBuiltInGadgetClient, error)
 }
 
@@ -44,9 +44,9 @@ func (c *builtInGadgetManagerClient) GetInfo(ctx context.Context, in *InfoReques
 	return out, nil
 }
 
-func (c *builtInGadgetManagerClient) GetBuiltInGadgetInfo(ctx context.Context, in *GetBuiltInGadgetInfoRequest, opts ...grpc.CallOption) (*GetBuiltInGadgetInfoResponse, error) {
-	out := new(GetBuiltInGadgetInfoResponse)
-	err := c.cc.Invoke(ctx, "/api.BuiltInGadgetManager/GetBuiltInGadgetInfo", in, out, opts...)
+func (c *builtInGadgetManagerClient) GetRunGadgetInfo(ctx context.Context, in *GetRunGadgetInfoRequest, opts ...grpc.CallOption) (*GetRunGadgetInfoResponse, error) {
+	out := new(GetRunGadgetInfoResponse)
+	err := c.cc.Invoke(ctx, "/api.BuiltInGadgetManager/GetRunGadgetInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (x *builtInGadgetManagerRunBuiltInGadgetClient) Recv() (*GadgetEvent, error
 // for forward compatibility
 type BuiltInGadgetManagerServer interface {
 	GetInfo(context.Context, *InfoRequest) (*InfoResponse, error)
-	GetBuiltInGadgetInfo(context.Context, *GetBuiltInGadgetInfoRequest) (*GetBuiltInGadgetInfoResponse, error)
+	GetRunGadgetInfo(context.Context, *GetRunGadgetInfoRequest) (*GetRunGadgetInfoResponse, error)
 	RunBuiltInGadget(BuiltInGadgetManager_RunBuiltInGadgetServer) error
 	mustEmbedUnimplementedBuiltInGadgetManagerServer()
 }
@@ -101,8 +101,8 @@ type UnimplementedBuiltInGadgetManagerServer struct {
 func (UnimplementedBuiltInGadgetManagerServer) GetInfo(context.Context, *InfoRequest) (*InfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInfo not implemented")
 }
-func (UnimplementedBuiltInGadgetManagerServer) GetBuiltInGadgetInfo(context.Context, *GetBuiltInGadgetInfoRequest) (*GetBuiltInGadgetInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetBuiltInGadgetInfo not implemented")
+func (UnimplementedBuiltInGadgetManagerServer) GetRunGadgetInfo(context.Context, *GetRunGadgetInfoRequest) (*GetRunGadgetInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRunGadgetInfo not implemented")
 }
 func (UnimplementedBuiltInGadgetManagerServer) RunBuiltInGadget(BuiltInGadgetManager_RunBuiltInGadgetServer) error {
 	return status.Errorf(codes.Unimplemented, "method RunBuiltInGadget not implemented")
@@ -138,20 +138,20 @@ func _BuiltInGadgetManager_GetInfo_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BuiltInGadgetManager_GetBuiltInGadgetInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetBuiltInGadgetInfoRequest)
+func _BuiltInGadgetManager_GetRunGadgetInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRunGadgetInfoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BuiltInGadgetManagerServer).GetBuiltInGadgetInfo(ctx, in)
+		return srv.(BuiltInGadgetManagerServer).GetRunGadgetInfo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/api.BuiltInGadgetManager/GetBuiltInGadgetInfo",
+		FullMethod: "/api.BuiltInGadgetManager/GetRunGadgetInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BuiltInGadgetManagerServer).GetBuiltInGadgetInfo(ctx, req.(*GetBuiltInGadgetInfoRequest))
+		return srv.(BuiltInGadgetManagerServer).GetRunGadgetInfo(ctx, req.(*GetRunGadgetInfoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -194,8 +194,8 @@ var BuiltInGadgetManager_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BuiltInGadgetManager_GetInfo_Handler,
 		},
 		{
-			MethodName: "GetBuiltInGadgetInfo",
-			Handler:    _BuiltInGadgetManager_GetBuiltInGadgetInfo_Handler,
+			MethodName: "GetRunGadgetInfo",
+			Handler:    _BuiltInGadgetManager_GetRunGadgetInfo_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
