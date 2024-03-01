@@ -1,4 +1,4 @@
-// Copyright 2023 The Inspektor Gadget authors
+// Copyright 2023-2024 The Inspektor Gadget authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -288,16 +288,16 @@ func (r *Runtime) GetGadgetInfo(ctx context.Context, desc gadgets.GadgetDesc, ga
 		return nil, fmt.Errorf("dialing random target: %w", err)
 	}
 	defer conn.Close()
-	client := api.NewGadgetManagerClient(conn)
+	client := api.NewBuiltInGadgetManagerClient(conn)
 
 	allParams := make(map[string]string)
 	gadgetParams.CopyToMap(allParams, "")
 
-	in := &api.GetGadgetInfoRequest{
+	in := &api.GetBuiltInGadgetInfoRequest{
 		Params: allParams,
 		Args:   args,
 	}
-	out, err := client.GetGadgetInfo(ctx, in)
+	out, err := client.GetBuiltInGadgetInfo(ctx, in)
 	if err != nil {
 		return nil, fmt.Errorf("getting gadget info: %w", err)
 	}
@@ -438,9 +438,9 @@ func (r *Runtime) runGadget(gadgetCtx runtime.GadgetContext, target target, allP
 		return nil, fmt.Errorf("dialing target on node %q: %w", target.node, err)
 	}
 	defer conn.Close()
-	client := api.NewGadgetManagerClient(conn)
+	client := api.NewBuiltInGadgetManagerClient(conn)
 
-	runRequest := &api.GadgetRunRequest{
+	runRequest := &api.BuiltInGadgetRunRequest{
 		GadgetName:     gadgetCtx.GadgetDesc().Name(),
 		GadgetCategory: gadgetCtx.GadgetDesc().Category(),
 		Params:         allParams,
@@ -451,12 +451,12 @@ func (r *Runtime) runGadget(gadgetCtx runtime.GadgetContext, target target, allP
 		Timeout:        int64(gadgetCtx.Timeout()),
 	}
 
-	runClient, err := client.RunGadget(connCtx)
+	runClient, err := client.RunBuiltInGadget(connCtx)
 	if err != nil && !errors.Is(err, context.Canceled) {
 		return nil, err
 	}
 
-	controlRequest := &api.GadgetControlRequest{Event: &api.GadgetControlRequest_RunRequest{RunRequest: runRequest}}
+	controlRequest := &api.BuiltInGadgetControlRequest{Event: &api.BuiltInGadgetControlRequest_RunRequest{RunRequest: runRequest}}
 	err = runClient.Send(controlRequest)
 	if err != nil {
 		return nil, err
@@ -531,7 +531,7 @@ func (r *Runtime) runGadget(gadgetCtx runtime.GadgetContext, target target, allP
 	case <-gadgetCtx.Context().Done():
 		// Send stop request
 		gadgetCtx.Logger().Debugf("%-20s | sending stop request", target.node)
-		controlRequest := &api.GadgetControlRequest{Event: &api.GadgetControlRequest_StopRequest{StopRequest: &api.GadgetStopRequest{}}}
+		controlRequest := &api.BuiltInGadgetControlRequest{Event: &api.BuiltInGadgetControlRequest_StopRequest{StopRequest: &api.BuiltInGadgetStopRequest{}}}
 		runClient.Send(controlRequest)
 
 		// Wait for done or timeout
