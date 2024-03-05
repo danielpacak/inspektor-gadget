@@ -19,13 +19,11 @@ package ebpfoperator
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"strings"
 	"sync"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/spf13/viper"
 
 	containercollection "github.com/inspektor-gadget/inspektor-gadget/pkg/container-collection"
@@ -34,7 +32,6 @@ import (
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/gadgets"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/logger"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/networktracer"
-	"github.com/inspektor-gadget/inspektor-gadget/pkg/oci"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/operators"
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/tchandler"
 )
@@ -56,18 +53,13 @@ func (o *ebpfOperator) Description() string {
 	return "handles ebpf programs"
 }
 
-func (o *ebpfOperator) InstantiateImageOperator(gadgetCtx operators.GadgetContext, desc ocispec.Descriptor) (
+func (o *ebpfOperator) InstantiateImageOperator(gadgetCtx operators.GadgetContext, imageResolver operators.GadgetImageResolver) (
 	operators.ImageOperatorInstance, error,
 ) {
-	r, err := oci.GetContentFromDescriptor(gadgetCtx.Context(), desc)
+	program, err := imageResolver.GetContentForMediaType(eBPFObjectMediaType)
 	if err != nil {
-		return nil, fmt.Errorf("getting ebpf binary: %w", err)
+		return nil, fmt.Errorf("getting ebpf program from image: %w", err)
 	}
-	program, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("reading binary: %w", err)
-	}
-	r.Close()
 
 	// TODO: do some pre-checks in here, maybe validate hashes, signatures, etc.
 
@@ -91,6 +83,7 @@ func (o *ebpfOperator) InstantiateImageOperator(gadgetCtx operators.GadgetContex
 		tcHandlers:     make(map[string]*tchandler.Handler),
 	}
 
+	// TODO: Get metadata using the imageResolver
 	cfg, ok := gadgetCtx.GetVar("config")
 	if !ok {
 		return nil, fmt.Errorf("missing configuration")

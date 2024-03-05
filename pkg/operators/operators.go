@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"sync"
 
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/datasource"
@@ -89,7 +88,7 @@ type ImageOperator interface {
 	// InstantiateImageOperator will be run to load information about a gadget and also to _possibly_
 	// run the gadget afterward. It should only do things that are required to populate
 	// DataSources and Params. It could use caching to speed things up, if necessary.
-	InstantiateImageOperator(GadgetContext, ocispec.Descriptor) (ImageOperatorInstance, error)
+	InstantiateImageOperator(GadgetContext, GadgetImageResolver) (ImageOperatorInstance, error)
 }
 
 type ImageOperatorInstance interface {
@@ -166,6 +165,13 @@ type ContainerInfoGetters interface {
 	GetNamespace() string
 	GetContainer() string
 	GetContainerImageName() string
+}
+
+// GadgetImageResolver is an interface that operators can use to extract the
+// metadata and specific content from a gadget image
+type GadgetImageResolver interface {
+	GetMetadata() []byte
+	GetContentForMediaType(mediaType string) ([]byte, error)
 }
 
 var allOperators = map[string]Operator{}

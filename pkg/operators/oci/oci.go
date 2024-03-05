@@ -20,6 +20,7 @@ import (
 	"io"
 	"sort"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/spf13/viper"
 
 	"github.com/inspektor-gadget/inspektor-gadget/pkg/oci"
@@ -135,15 +136,18 @@ func (o *ociHandler) Instantiate(gadgetCtx operators.GadgetContext, params *para
 	gadgetCtx.SetVar("config", viper)
 
 	instance := &OciHandlerInstance{
-		gadgetCtx: gadgetCtx,
+		gadgetCtx:         gadgetCtx,
+		metadata:          metadata,
+		layerForMediaType: make(map[string]ocispec.Descriptor),
 	}
 
 	for _, layer := range manifest.Layers {
 		logger.Debugf("layer > %+v", layer)
+		instance.layerForMediaType[layer.MediaType] = layer
 		ops := operators.GetImageOperatorsForMediaType(layer.MediaType)
 		for _, op := range ops {
 			logger.Debugf("found layer op %q", op.Name())
-			opInst, err := op.InstantiateImageOperator(gadgetCtx, layer)
+			opInst, err := op.InstantiateImageOperator(gadgetCtx, instance)
 			if err != nil {
 				logger.Errorf("instantiating operator %q: %v", op.Name(), err)
 			}
@@ -185,6 +189,23 @@ func (o *ociHandler) Instantiate(gadgetCtx operators.GadgetContext, params *para
 
 func (o *OciHandlerInstance) ParamDescs() params.ParamDescs {
 	return nil
+}
+
+func (o *OciHandlerInstance) GetMetadata() []byte {
+	return o.metadata
+}
+
+func (o *OciHandlerInstance) GetContentForMediaType(mediaType string) ([]byte, error) {
+	layer, ok := o.layerForMediaType[mediaType]
+	if !ok {
+		return nil, fmt.Errorf("no layer for media type %q", mediaType)
+	}
+	r, err := oci.GetContentFromDescriptor(o.gadgetCtx.Context(), layer)
+	if err != nil {
+		return nil, fmt.Errorf("getting content for media type %q: %w", mediaType, err)
+	}
+	defer r.Close()
+	return io.ReadAll(r)
 }
 
 func (o *OciHandlerInstance) Prepare() error {
@@ -267,6 +288,8 @@ func (o *OciHandlerInstance) PostGadgetRun() error {
 
 type OciHandlerInstance struct {
 	gadgetCtx              operators.GadgetContext
+	metadata               []byte
+	layerForMediaType      map[string]ocispec.Descriptor
 	layerOperatorInstances []operators.ImageOperatorInstance
 	dataOperatorInstances  []operators.DataOperatorInstance
 }
